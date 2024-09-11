@@ -8,6 +8,8 @@
 #include <sstream>
 #include <string>
 
+#include "os_status.h"
+
 
 class TcpServer {
     private:

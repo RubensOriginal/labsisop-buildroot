@@ -57,7 +57,8 @@ void TcpServer::startListen()
 
         acceptConnection(*(&new_socket));
 
-        char buffer[BUFFER_SIZE] = {0};
+        char buffer[BUFFER_SIZE];
+
         int bytesReceived = read(new_socket, buffer, BUFFER_SIZE);
 
         if (bytesReceived < 0) {
@@ -72,6 +73,7 @@ void TcpServer::startListen()
         sendResponse(*(&new_socket), *(&response));
 
         close(new_socket);
+
     }
     
 }
@@ -88,7 +90,14 @@ void TcpServer::acceptConnection(int &new_socket)
 
 std::string TcpServer::buildResponse()
 {
-    std::string htmlFile = "<!DOCTYPE html><html lang=\"en\"><body><h1> HOME </h1><p> Hello from your Server :) </p></body></html>";
+    std::ostringstream html;
+
+    OSStatus status = OSStatus();
+
+    html << "<!DOCTYPE html><html lang=\"en\"><body><h1>WebServer - OS Status </h1>" << status.getSystemTime() << "</body></html>";
+
+    std::string htmlFile = html.str();
+
     std::ostringstream ss;
     ss << "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: " << htmlFile.size() << "\n\n" << htmlFile;
 
