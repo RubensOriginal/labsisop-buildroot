@@ -4,8 +4,10 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <regex>
 
 #include <unistd.h>
+#include <dirent.h>
 
 class OSStatus {
     private:
@@ -23,6 +25,9 @@ class OSStatus {
         std::string getProcessorStatus();
         std::string getMemoryStatus();
         std::string getSystemVersion();
+        std::string getProcesses();
+        std::string getDiskSize();
+        std::string getNetwork();
 };
 
 #endif

@@ -201,7 +201,7 @@ std::string OSStatus::getMemoryStatus()
 
     std::ostringstream ss;
 
-    ss << "<h2>Uso da Memória:</h2><p>Memória Total: " << (float)memTotal / 1000.0f << " MB</p><p>Memória Usada: " << (float)(memTotal - memFree) / 1000.0f << " MB</p>";
+    ss << "<h2>Uso da Memória:</h2><p>Memória Total: " << (float)memTotal / 1000.0f << " MB</p><p>Memória em Uso: " << (float)(memTotal - memFree) / 1000.0f << " MB</p>";
 
     return ss.str();
 }
@@ -222,5 +222,131 @@ std::string OSStatus::getSystemVersion()
     std::ostringstream ss;
 
     ss << "<h2>Versão do Sistema: </h2><p>" << osVersion << "</p>";
+    return ss.str();
+}
+
+std::string OSStatus::getProcesses()
+{
+
+    DIR *dir;
+    struct dirent *dp;
+
+    if ((dir = opendir ("/proc")) == NULL) {
+        perror ("Cannot open .");
+        exit (1);
+    }
+
+    std::regex r("([0-9])*");
+
+    std::ostringstream ss;
+
+    ss << "<h2>Processos em Execução:</h2>";
+
+    while ((dp = readdir (dir)) != NULL) {
+        std::string path(dp->d_name);
+
+        if (regex_match(path, r)) {
+            std::string proc_path = "/proc/";
+            proc_path.append(path);
+            proc_path.append("/status");
+
+            char buffer[500];
+            int size = sizeof(buffer);
+            FILE *fp = fopen(proc_path.c_str(), "r");
+
+            fgets(buffer, size, fp);
+            int offset = getColon(buffer) + 2;
+            int end = getEnd(offset, buffer);
+
+            std::string process_name(buffer + offset, buffer + end);
+
+            ss << "<p>PID: "<< dp->d_name << " | Nome do processo: " << process_name << "</p>";
+
+            fclose(fp);
+
+        }
+    }
+
+    closedir(dir);
+
+    return ss.str();
+}
+
+std::string OSStatus::getDiskSize()
+{
+    DIR *dir;
+    struct dirent *dp;
+    char buffer[500];
+    int size = sizeof(buffer);
+
+    if ((dir = opendir ("/sys/block/")) == NULL) {
+        perror("Cannot open .");
+        exit(1);
+    }
+
+    std::ostringstream ss;
+
+    ss << "<h2>Unidades de Disco:</h2>";
+
+    while ((dp = readdir (dir)) != NULL) {
+        std::string disk(dp->d_name);
+
+        if (dp->d_name[0] == '.' || dp->d_name[0] == 'l' || dp->d_name[0] == 'd')
+            continue;
+
+        std::string path = "/sys/block/";
+        path.append(disk);
+        path.append("/queue/physical_block_size");
+        FILE *fp = fopen(path.c_str(), "r");
+
+        fgets(buffer, size, fp);
+        int block_size = atoi(buffer);
+        fclose(fp);
+
+        path = "/sys/block/";
+        path.append(disk);
+        path.append("/size");
+        fopen(path.c_str(), "r");
+
+        fgets(buffer, size, fp);
+        unsigned long int disk_size = atoi(buffer) * block_size;
+        fclose(fp);
+
+        ss << "<p>Disco: " << disk << " | Tamanho: " << (float) disk_size / 1000000.0f << " MB</p>";
+    }
+
+    return ss.str();
+}
+
+std::string OSStatus::getNetwork()
+{
+    char buffer[500];
+    int size = sizeof(buffer);
+
+    std::ostringstream ss;
+
+    ss << "<h2>Adaptadores de Rede:</h2>";
+
+    FILE *fp = fopen("/proc/net/route", "r");
+
+    fgets(buffer, size, fp);
+
+    while(!feof(fp)) {
+        fgets(buffer, size, fp);
+        
+        std:: stringstream sbuffer(buffer);
+
+        std::string interface;
+        std::string hex_addr;
+        sbuffer >> interface;
+        sbuffer >> hex_addr;
+
+        std::string address = std::to_string(std::stol("0" + hex_addr.substr(6,2), nullptr, 16)) + "." + std::to_string(std::stol("0" + hex_addr.substr(4,2), nullptr, 16)) + "." + std::to_string(std::stol("0" + hex_addr.substr(2,2), nullptr, 16)) + "." + std::to_string(std::stol("0" + hex_addr.substr(0,2), nullptr, 16));
+
+        ss << "<p> Rede: " << interface << " | IP: " << address << "</p>"; 
+    }
+
+    fclose(fp);
+
     return ss.str();
 }

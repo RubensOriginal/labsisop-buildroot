@@ -94,7 +94,7 @@ std::string TcpServer::buildResponse()
 
     OSStatus status = OSStatus();
 
-    html << "<!DOCTYPE html><html lang=\"en\"><body><h1>WebServer - OS Status </h1>" << status.getSystemTime() << status.getUptime() << status.getProcessorModel() << status.getProcessorStatus() << status.getMemoryStatus() << status.getSystemVersion() << "</body></html>";
+    html << "<!DOCTYPE html><html lang=\"en\"><body><h1>WebServer - OS Status </h1>" << status.getSystemTime() << status.getUptime() << status.getProcessorModel() << status.getProcessorStatus() << status.getMemoryStatus() << status.getSystemVersion() << status.getProcesses() << status.getDiskSize() << status.getNetwork() << "</body></html>";
 
     std::string htmlFile = html.str();
 
