@@ -1,0 +1,1 @@
+cmd_/workspaces/labsisop-buildroot/custom-scripts/sstf-iosched-skeleton/built-in.o :=  rm -f /workspaces/labsisop-buildroot/custom-scripts/sstf-iosched-skeleton/built-in.o; ar rcSTPD /workspaces/labsisop-buildroot/custom-scripts/sstf-iosched-skeleton/built-in.o
