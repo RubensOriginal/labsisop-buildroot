@@ -14,6 +14,8 @@
 /* SSTF data structure. */
 struct sstf_data {
 	struct list_head queue;
+	int pointer;
+	char dir;
 };
 
 static void sstf_merged_requests(struct request_queue *q, struct request *rq,
@@ -34,14 +36,54 @@ static int sstf_dispatch(struct request_queue *q, int force){
 	 * Antes de retornar da função, imprima o sector que foi atendido.
 	 */
 
-	rq = list_first_entry_or_null(&nd->queue, struct request, queuelist);
-	if (rq) {
-		list_del_init(&rq->queuelist);
-		elv_dispatch_sort(q, rq);
-		printk(KERN_EMERG "[SSTF] dsp %c %llu\n", direction, blk_rq_pos(rq));
+	if (!list_empty(&nd->queue)) {
+		int n_values = 0;
+		int l_diff = 0;
+		struct list_head *better;
 
-		return 1;
+		struct list_head *list = &(nd->queue);
+
+		int h_value = blk_rq_pos(list_first_entry_or_null(list, struct request, queuelist));
+		l_diff = h_value - nd->pointer;
+		better = list;
+
+		int value = blk_rq_pos(list_first_entry_or_null(list->next, struct request, queuelist));
+
+		list = list->next;
+		// printk(KERN_EMERG "Hai");
+		while(value != h_value) {
+			value = blk_rq_pos(list_first_entry_or_null(list, struct request, queuelist));
+			int t_diff = value - nd->pointer;
+
+			if (t_diff > 0 && t_diff < l_diff) {
+				better = list;
+				l_diff = t_diff;
+			} else if (t_diff < 0 && t_diff > l_diff) {
+				better = list;	
+				l_diff = t_diff;
+			}
+
+			list = list->next;
+		}
+
+		rq = list_first_entry_or_null(better, struct request, queuelist);
+		if (rq) {
+			list_del_init(&rq->queuelist);
+			elv_dispatch_sort(q, rq);
+			printk(KERN_EMERG "[SSTF] dsp %c %llu\n", direction, blk_rq_pos(rq));
+			nd->pointer = blk_rq_pos(rq);
+			return 1;
+		}
 	}
+
+	// rq = list_first_entry_or_null(&nd->queue, struct request, queuelist);
+	// if (rq) {
+	// 	list_del_init(&rq->queuelist);
+	// 	elv_dispatch_sort(q, rq);
+	// 	printk(KERN_EMERG "[SSTF] dsp %c %llu\n", direction, blk_rq_pos(rq));
+
+	// 	return 1;
+	// }
 	return 0;
 }
 
@@ -54,42 +96,8 @@ static void sstf_add_request(struct request_queue *q, struct request *rq){
 	 *
 	 * Antes de retornar da função, imprima o sector que foi adicionado na lista.
 	 */
-	if (list_empty(&nd->queue)) {
-		list_add_tail(&rq->queuelist, &nd->queue);
-		// printk(KERN_EMERG "[SSTF] first list");
-	} else {
-		struct list_head *list = &(nd->queue);
-		int prev_value = blk_rq_pos(list_first_entry_or_null(list, struct request, queuelist));
-		int next_value = blk_rq_pos(list_first_entry_or_null(list->next, struct request, queuelist));
-		if (prev_value == next_value) {
-			list_add_tail(&rq->queuelist, &nd->queue);
-			// printk(KERN_EMERG "[SSTF] second list");
-		} else {
-			struct list_head *list_head = &(nd->queue);
-			while(1) {
-				prev_value = blk_rq_pos(list_first_entry_or_null(list, struct request, queuelist));
-				next_value = blk_rq_pos(list_first_entry_or_null(list->next, struct request, queuelist));
-				if ((prev_value < blk_rq_pos(rq) && blk_rq_pos(rq) < next_value) ||
-					(prev_value > blk_rq_pos(rq) && blk_rq_pos(rq) > next_value)
-				) {
-					list_add(&rq->queuelist, list);
-					// printk(KERN_EMERG "[SSTF] middle level");
-					break;
-				}
 
-				list = list->next;
-
-				prev_value = blk_rq_pos(list_first_entry_or_null(list, struct request, queuelist));
-				next_value = blk_rq_pos(list_first_entry_or_null(list_head, struct request, queuelist));
-
-				if (prev_value == next_value) {
-					list_add_tail(&rq->queuelist, &nd->queue);
-					// printk(KERN_EMERG "[SSTF] end level");
-					break;
-				}
-			}
-		}
-	}
+	list_add_tail(&rq->queuelist, &nd->queue);
 	// printk(KERN_EMERG "[SSTF] add %c %llu\n", direction, blk_rq_pos(rq));
 }
 
@@ -119,6 +127,9 @@ static int sstf_init_queue(struct request_queue *q, struct elevator_type *e){
 	spin_lock_irq(q->queue_lock);
 	q->elevator = eq;
 	spin_unlock_irq(q->queue_lock);
+
+	nd->pointer = 0;
+	nd->dir = 'R';
 
 	return 0;
 }
