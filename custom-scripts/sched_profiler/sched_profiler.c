@@ -4,10 +4,11 @@
 #include <semaphore.h>
 
 pthread_barrier_t barrier;
-pthread_mutex_t mutex;
+// pthread_mutex_t mutex;
 char* buffer;
 int counter;
 int max_size;
+int max_size_per_thread;
 
 
 void* write(void* arg) {
@@ -17,10 +18,12 @@ void* write(void* arg) {
     // Wait for all threads to reach this point
     pthread_barrier_wait(&barrier);
     
-    for (int i = 0; i < 10; i++)
-        pthread_mutex_lock(&mutex); 
-        printf("%c\n", character);
-        pthread_mutex_unlock(&mutex); 
+    for (int i = 0; i < max_size_per_thread; i++) {
+        int index = __sync_fetch_and_add(&counter, 1);
+        buffer[index] = character;
+        // printf("%c\n", character);
+        // pthread_mutex_unlock(&mutex);
+    }
     
     return NULL;
 }
@@ -47,6 +50,31 @@ int setpriority(pthread_t *thr, int newpolicy, int newpriority)
 	return 0;
 }
 
+void count_transitions(char* buffer, int buffer_size) {
+    if (buffer_size == 0) return;
+
+    int counts[256] = {0}; // Assuming ASCII characters
+    char prev_char = buffer[0];
+    counts[(unsigned char)prev_char]++;
+    printf("%c", buffer[0]);
+
+    for (int i = 1; i < buffer_size; i++) {
+        if (buffer[i] != prev_char) {
+            counts[(unsigned char)buffer[i]]++;
+            prev_char = buffer[i];
+            printf("%c", buffer[i]);
+        }
+    }
+
+    printf("\n\n");
+    // Print the counts
+    for (int i = 0; i < 256; i++) {
+        if (counts[i] > 0 && i != 0) {
+            printf("%c = %d\n", i, counts[i]);
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc < 4) {
         printf("Usage: %s <tamanho_buffer> <num_threads> <policy>\n", argv[0]);
@@ -60,17 +88,20 @@ int main(int argc, char **argv) {
 
     pthread_t threads[num_threads];
     char* characters[num_threads];
-    int local_buffer[tamanho_buffer];
-    buffer = local_buffer;
+    buffer = malloc(tamanho_buffer * sizeof(char));
     max_size = tamanho_buffer;
+    max_size_per_thread = max_size / num_threads;
     counter = 0;
 
-    if (pthread_mutex_init(&lock, NULL) != 0) { 
-        printf("\n mutex init has failed\n"); 
-        return 1; 
-    }
+    // if (pthread_mutex_init(&mutex, NULL) != 0) { 
+    //     printf("\n mutex init has failed\n"); 
+    //     return 1; 
+    // }
 
-    pthread_barrier_init(&barrier, NULL, num_threads);
+    if (pthread_barrier_init(&barrier, NULL, num_threads) != 0) {
+        fprintf(stderr, "Could not create barrier\n");
+        return 1;
+    }
 
     for (int i = 0; i < num_threads; i++) {
         characters[i] = 'A' + i;
@@ -88,4 +119,16 @@ int main(int argc, char **argv) {
 
     pthread_barrier_destroy(&barrier);
 
+    printf("Saída Sem Processamento:\n");
+    for (int i = 0; i < tamanho_buffer; i++) {
+        printf("%c", buffer[i]);
+    }
+
+    printf("\n\n");
+
+
+    printf("Saída Com Processamento:\n");
+    count_transitions(buffer, tamanho_buffer);
+
+    free(buffer);
 }
