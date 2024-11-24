@@ -4,7 +4,6 @@
 #include <semaphore.h>
 
 pthread_barrier_t barrier;
-// pthread_mutex_t mutex;
 char* buffer;
 int counter;
 int max_size;
@@ -14,7 +13,6 @@ int max_size_per_thread;
 void* write(void* arg) {
     char character = *(char*)arg;
 
-    // printf("Thread %c waiting at the barrier.\n", character);
     // Wait for all threads to reach this point
     pthread_barrier_wait(&barrier);
     
@@ -23,6 +21,7 @@ void* write(void* arg) {
         buffer[index] = character;
         // printf("%c\n", character);
         // pthread_mutex_unlock(&mutex);
+        for (int j = 0; j < 100000; j++);
     }
     
     return NULL;
@@ -53,7 +52,7 @@ int setpriority(pthread_t *thr, int newpolicy, int newpriority)
 void count_transitions(char* buffer, int buffer_size) {
     if (buffer_size == 0) return;
 
-    int counts[256] = {0}; // Assuming ASCII characters
+    int counts[256] = {0};
     char prev_char = buffer[0];
     counts[(unsigned char)prev_char]++;
     printf("%c", buffer[0]);
@@ -67,7 +66,7 @@ void count_transitions(char* buffer, int buffer_size) {
     }
 
     printf("\n\n");
-    // Print the counts
+
     for (int i = 0; i < 256; i++) {
         if (counts[i] > 0 && i != 0) {
             printf("%c = %d\n", i, counts[i]);
@@ -92,11 +91,6 @@ int main(int argc, char **argv) {
     max_size = tamanho_buffer;
     max_size_per_thread = max_size / num_threads;
     counter = 0;
-
-    // if (pthread_mutex_init(&mutex, NULL) != 0) { 
-    //     printf("\n mutex init has failed\n"); 
-    //     return 1; 
-    // }
 
     if (pthread_barrier_init(&barrier, NULL, num_threads) != 0) {
         fprintf(stderr, "Could not create barrier\n");
